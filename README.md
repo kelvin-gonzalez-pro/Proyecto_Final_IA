@@ -11,17 +11,17 @@ Agente de IA que atiende las solicitudes de los corredores de seguros que llegan
 
 | Archivo / carpeta | Qué contiene |
 |---|---|
-| `workflow-agente-rag.json` | Workflow de n8n exportado |
+| `workflow-agente-rag.json` | Workflow de n8n |
 | `README.md` | Este documento: caso de negocio, ROI, decisiones técnicas, manejo de errores, system prompt y recursos que se deben crear |
-| `supabase.sql` | Scripts del Vector Store (pgvector), permisos y numeración atómica de cotizaciones |
-| `faq-seguros.md` | Documento de preguntas frecuentes que se indexa en el Vector Store |
+| `supabase.sql` | Scripts del Vector Store, permisos y numeración de cotizaciones mediante una secuencia |
+| `faq-seguros.md` | Documento de preguntas frecuentes que se ingresa en el Vector Store |
 | `capturas/` | Capturas del canvas y de ejecuciones de prueba |
 
 ---
 
 ## 1. Caso de negocio
 
-### El proceso manual actual
+### El proceso actual manual
 
 En una corredora de seguros, los corredores envían solicitudes por correo: cotizaciones de seguro de auto, consultas (qué hacer ante un siniestro, qué cubre el SOAP, qué es un deducible) y otros temas. Hoy un ejecutivo:
 
@@ -37,7 +37,7 @@ En una corredora de seguros, los corredores envían solicitudes por correo: coti
 - **Tiempo de respuesta actual:** hasta **5 días hábiles**.
 - **Costo:** un ejecutivo gana aproximadamente **$800.000 mensuales**.
 
-Es un proceso repetitivo, con datos que entran por más de un canal y con reglas claras, pero con mensajes escritos en texto libre: el candidato ideal para un agente de IA con límites definidos.
+Es un proceso repetitivo, con datos que entran por más de un canal y distintas casillas de correo pero lo atiende el mismo ejecutivo (se hace para darle un grado de importancia al corredor es decir el mail corriente es solicitudes@seguros.com y el vip o corporativo es fasttrack@seguros.com) y con reglas claras, pero con mensajes escritos en texto libre lo cual deriva en el candidato ideal para un agente de IA con límites definidos.
 
 ### Qué hace el sistema
 
@@ -47,7 +47,7 @@ Es un proceso repetitivo, con datos que entran por más de un canal y con reglas
 | **Cotización incompleta** | Responde indicando exactamente qué datos faltan |
 | **Vehículo sin tarifa** | Informa que no hay tarifa para ese modelo o año y deriva al ejecutivo |
 | **Consulta** | Busca en el FAQ (RAG) y responde solo con la información encontrada; si la pregunta es ambigua, primero pregunta |
-| **Derivar** (reclamos, estado de pólizas, temas ajenos, posible manipulación) | Indica que el ejecutivo revisará la solicitud y cuándo lo contactará, según el horario de oficina |
+| **Derivar** (reclamos, estado de pólizas, temas ajenos, posible manipulación del agente) | Indica que el ejecutivo revisará la solicitud y cuándo lo contactará, según el horario de oficina |
 
 Todas las solicitudes quedan registradas en una **bitácora**. Cada respuesta sale por el mismo canal por el que llegó: **correo en HTML** (con el PDF adjunto si es una cotización) o **mensaje corto por Telegram** (con el PDF como documento).
 
@@ -86,9 +86,9 @@ Todas las solicitudes quedan registradas en una **bitácora**. Cada respuesta sa
 | Groq, plan pagado *Dev Tier* (≈ 1.300 mensajes al mes) | pocos USD / mes |
 | Cohere Embeddings / Supabase / Google Workspace | plan gratuito suficiente para este volumen |
 | **Total operación** | **≈ $30.000 / mes** |
-| Implementación (≈ 40 h de desarrollo, una vez) | ≈ $176.000 |
+| Implementación (≈ 40 h de desarrollo, una vez) | ≈ $176.000 (supuesto) |
 
-**Ahorro neto ≈ $630.000 al mes. La implementación se recupera en menos de un mes.**
+**Ahorro neto ≈ $630.000 al mes. La implementación se recupera en menos de un mes (supuesto).**
 
 ### Por qué escala mejor que el proceso manual
 
@@ -99,7 +99,7 @@ Todas las solicitudes quedan registradas en una **bitácora**. Cada respuesta sa
 ### Límites del ROI: cuándo dejaría de tener sentido
 
 - **Volumen bajo:** cada correo automatizado ahorra ≈ $730 (10 min). Con ≈ $30.000 de operación más ≈ 4 h de mantenimiento al mes, el punto de equilibrio está en unos **65 correos automatizados al mes**. Con menos de **≈ 25 correos por semana** no compensa.
-- **Si la mayoría se deriva:** si menos del 30–40 % de los mensajes se resuelve solo, el ejecutivo sigue haciendo casi todo el trabajo. La bitácora permite medir este porcentaje real.
+- **Si la mayoría se deriva:** si menos del 30–40 % de los mensajes se resuelve solo, el ejecutivo sigue haciendo casi todo el trabajo. La bitácora permite medir este porcentaje real como analisis el primer y segundo mes, tambien proyectado en las primeras 2 semanas.
 - **Tarifas que cambian todo el tiempo:** si la planilla de tarifas o el FAQ cambian a diario, el mantenimiento se come el ahorro.
 - **Productos complejos:** cotizaciones que requieren evaluación de riesgo, inspección o negociación siguen necesitando a una persona.
 
@@ -147,14 +147,14 @@ flowchart LR
 
 | Nodo | Por qué está |
 |---|---|
-| **Gmail Trigger / Telegram Trigger** | Las dos fuentes de entrada. El Gmail Trigger revisa cada minuto los correos con "cotización" en el asunto |
+| **Gmail Trigger / Telegram Trigger** | Las dos fuentes de entrada. El Gmail Trigger revisará cada minuto los correos con "cotización" o "consulta" en el asunto |
 | **Adaptar mail / Adaptar sms** | Cada canal trae los datos con otra estructura; aquí se llevan a los mismos campos (`canal`, `remitente_id`, `remitente_nombre`, `asunto`, `texto`) |
 | **Mensaje Ajustado** | Punto único de entrada al agente: desde aquí el flujo no depende del canal |
 | **AI Agent** | Interpreta el texto libre, decide el tipo de solicitud, extrae datos, usa herramientas y redacta la respuesta |
-| **Groq Chat Model** | Modelo de lenguaje del agente (`openai/gpt-oss-20b`, temperatura 0.1 para respuestas consistentes) |
+| **Groq Chat Model** | Modelo de lenguaje del agente (`openai/gpt-oss-20b`, temperatura 0.1 para respuestas consistentes) en este punto se realizaron cambios de modelo por limite en la cantidad de tokens dada la versión gratuita |
 | **Recordando_ando (Simple Memory)** | Mantiene la conversación por remitente (últimos 3 intercambios) para que el agente pueda hacer preguntas de aclaración y continuar |
 | **buscar_preguntas_frecuentes** | Herramienta RAG: busca en el FAQ indexado en Supabase (2 fragmentos más similares) |
-| **Busca Segmentos / Crea Segmentos (Cohere)** | Embeddings multilingües para buscar e indexar el FAQ |
+| **Busca Segmentos / Crea Segmentos (Cohere)** | Embeddings para buscar e indexar el FAQ |
 | **horario_oficina** | Herramienta que lee el horario de los ejecutivos, para indicar cuándo se contactará al corredor en una derivación |
 | **Structured Output Parser** | Obliga al agente a devolver JSON (`tipo`, `estado`, datos del vehículo, `respuesta`) para que el flujo pueda decidir con reglas |
 | **Buscar bitácora / Existe bitácora? / Crear bitácora** | Verifica si existe la planilla de bitácora; si no existe, la crea |
@@ -185,19 +185,19 @@ flowchart LR
 | Agente principal | `openai/gpt-oss-20b` (temperatura 0.1) | Groq |
 | Embeddings | `embed-multilingual-v3.0` (1024 dimensiones) | Cohere |
 
-### Justificación con los criterios del curso
+### Justificación con los criterios vistos en el curso
 
 **Costo según el volumen esperado.** Con ≈ 1.300 mensajes al mes, el costo de la API en Groq es de pocos dólares. Correr un modelo equivalente localmente con Ollama requiere un servidor con GPU encendido 24/7, que cuesta mucho más que la API para este volumen.
 
-**Privacidad de los datos.** El proceso maneja datos de bajo riesgo: nombre del cliente y marca, modelo y año del vehículo. El FAQ es información pública. Además, el system prompt prohíbe repetir datos sensibles (RUT completo, datos bancarios, diagnósticos médicos) y el agente no pide ningún dato adicional a los 4 requeridos.
+**Privacidad de los datos.** El proceso maneja datos de bajo riesgo: nombre del cliente y marca, modelo y año del vehículo. El FAQ es información pública. Además, el system prompt prohíbe repetir datos sensibles (RUT completo, datos bancarios, etc) y el agente no pide ningún dato adicional a los 4 requeridos.
 
 **Independencia de proveedores externos.** Es el punto débil de la nube y se mitiga de dos formas:
 - `gpt-oss-20b` es un modelo de **pesos abiertos**: el mismo modelo se puede correr localmente con Ollama si en el futuro se quiere dejar de depender de Groq, sin rediseñar el prompt.
 - El diseño tolera fallas del proveedor: reintentos automáticos y una salida de error del agente con respuesta de contingencia. El modelo se cambia en un solo nodo sin tocar el resto del flujo.
 
-**Embeddings.** Se eligió Cohere multilingüe porque el FAQ y las preguntas están en español; un modelo de embeddings solo en inglés recupera peor los fragmentos.
+**Embeddings.** Se eligió Cohere multilingüe porque el FAQ y las preguntas están en español; un modelo de embeddings solo en inglés recupera erroneamente los fragmentos.
 
-**Cuándo cambiaría a local.** Si en producción el agente procesara datos personales completos de clientes (RUT, datos de salud para seguros de vida, etc.), conviene un esquema **híbrido**: el modelo local con Ollama para los pasos que tocan esos datos y la nube para el resto.
+**Cuándo cambiaría a local.** Si en producción el agente procesara datos personales completos de clientes (RUT, datos de salud para seguros de vida, datos bancarios, datos sensibles de siniestros, etc.), conviene un esquema **híbrido**: el modelo local con Ollama para los pasos que tocan esos datos y la nube para el resto.
 
 ---
 
@@ -239,7 +239,7 @@ flowchart LR
 1. **Retry On Fail** en el AI Agent, para errores intermitentes.
 2. **On Error → Continue (using error output):** si el agente falla, su salida de error va a **Respuesta error agente**, que envía por el mismo canal un mensaje de contingencia: *"en este momento no pudimos procesar su solicitud de forma automática; el ejecutivo la revisará y lo contactará en horario hábil"*.
 3. **Menos tokens por respuesta:** memoria de 3 intercambios, 2 fragmentos del RAG y la herramienta de horario restringida a las derivaciones.
-4. **En producción:** plan pagado de Groq (*Dev Tier*), con límites mayores; su costo ya está considerado en el ROI.
+4. **En producción:** plan pagado de Groq, con límites mayores; considerando el costo en el ROI.
 
 ### Punto de falla 2: la planilla o la pestaña de registro no existen
 
@@ -399,21 +399,21 @@ Mensaje:
 
 | Recurso | Cómo se obtiene |
 |---|---|
-| Bot de Telegram | En Telegram, con **@BotFather** → `/newbot`. Entrega el token para la credencial |
+| Bot de Telegram | Token para la credencial |
 | `faq-seguros.md` publicado | Subirlo a un repositorio de GitHub y usar su URL **Raw** en el nodo *Cargar documento FAQ* |
 | API key de Groq | console.groq.com |
 | API key de Cohere | dashboard.cohere.com |
 
 ### Credenciales en n8n
 
-Gmail OAuth2, Telegram, Google Sheets, Google Drive y Google Docs (con la misma cuenta de Google), Supabase API (Host **sin** `/rest/v1` y la clave secreta), Groq y Cohere.
+Gmail OAuth2, Telegram, Google Sheets, Google Drive y Google Docs (con la misma cuenta de Google), Supabase API y la clave secreta), Groq y Cohere.
 
 ---
 
 ## 11. Cómo reproducirlo
 
 1. Crear los recursos de la sección 10.
-2. Importar `workflow-agente-rag.json` en n8n (*Workflows → Import from File*) y asignar las credenciales en cada nodo.
+2. Importar `workflow-agente-rag.json` en n8n y asignar las credenciales en cada nodo.
 3. Seleccionar en los nodos `Leer tarifas`, `horario_oficina`, `Copiar plantilla` (plantilla y carpeta) los archivos creados en el propio Drive.
 4. En **Gmail Trigger**, ajustar el filtro de remitente (en las pruebas está limitado a un solo correo) y mantener el filtro de asunto `subject:cotización`.
 5. Ejecutar una vez la rama de ingesta (**Inicio Cargar FAQ**) para cargar el FAQ en Supabase.
@@ -421,8 +421,8 @@ Gmail OAuth2, Telegram, Google Sheets, Google Drive y Google Docs (con la misma 
 
 ## Mejoras futuras
 
-- Notificar al ejecutivo por correo o Telegram cuando un caso se deriva.
+- Notificar al ejecutivo por correo o Telegram cuando un caso se deriva incluyendo la información de la consulta o citzación.
 - Reemplazar Simple Memory por Postgres Chat Memory en Supabase, para que la memoria sobreviva a reinicios.
 - Workflow global con **Error Trigger** para alertar de cualquier falla no controlada.
-- Reducir el tiempo de respuesta: Gmail por notificación (push) en vez de revisión cada minuto, y plan pagado de Groq para evitar reintentos por límite de tokens.
+- Reducir el tiempo de respuesta: Gmail por notificación en vez de revisión cada minuto, y plan pago de Groq para evitar reintentos por límite de tokens.
 - Esquema híbrido con un modelo local (Ollama) para los pasos que procesen datos personales.
