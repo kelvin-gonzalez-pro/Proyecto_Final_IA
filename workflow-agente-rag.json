@@ -1433,7 +1433,7 @@
             },
             {
               "action": "replaceAll",
-              "text": "[VIGENCIA]\t",
+              "text": "[VIGENCIA]",
               "replaceText": "={{ $now.setZone('America/Santiago').plus({ days: 7 }).toFormat('dd-MM-yyyy') }}"
             },
             {
@@ -2268,7 +2268,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "2c48938c-3b1b-40fa-913a-e6700e34b1ab",
+  "versionId": "9bcf76ff-fe44-4a99-937a-8c76c6c5a338",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "f80048c69f55c87f371bc778eabb260595210cb74f63c3b13fe6fa7580a20342"
