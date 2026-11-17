@@ -107,41 +107,11 @@ Todas las solicitudes quedan registradas en una **bitácora**. Cada respuesta sa
 
 ## 3. Arquitectura del workflow
 
-```mermaid
-flowchart LR
-    G[Gmail Trigger] --> AM[Adaptar mail]
-    T[Telegram Trigger] --> AS[Adaptar sms]
-    AM --> MA[Mensaje Ajustado]
-    AS --> MA
-    MA --> AG{{AI Agent}}
-    AG -.-> GQ[Groq Chat Model]
-    AG -.-> MEM[Recordando_ando]
-    AG -.-> RAG[buscar_preguntas_frecuentes]
-    RAG -.-> EMB[Busca Segmentos - Cohere]
-    AG -.-> HO[horario_oficina]
-    AG -.-> SOP[Structured Output Parser]
-    AG -- error --> RE[Respuesta error agente]
-    AG --> BB[Buscar bitácora] --> EB{Existe bitácora?}
-    EB -- no --> CB[Crear bitácora] --> FB[Fila bitácora]
-    EB -- sí --> FB
-    FB --> RB[Registrar bitácora] --> SW{Tipo solicitud}
-    SW -- COTIZACION --> LT[Leer tarifas] --> CP[Calcular prima] --> RT{Switch: resultado tarifa}
-    RT -- Con tarifa --> SN[Siguiente número] --> BR[Buscar registro] --> ED{Existe documento?}
-    ED -- no --> CD[Crear documento] --> DR[Datos registro]
-    ED -- sí --> DR
-    DR --> AH[Asegurar hoja] --> FC[Fila cotización] --> RC[Registrar cotización]
-    RC --> CPL[Copiar plantilla] --> LL[Llenar cotización] --> DP[Descargar PDF] --> RCO[Respuesta cotización] --> TP{Tiene PDF?}
-    TP -- sí --> CC{Canal Cotización}
-    CC -- email --> EP[Enviar respuesta PDF]
-    CC -- telegram --> TPDF[Telegram PDF]
-    TP -- no --> C{Canal}
-    RT -- Incompleta --> RI[Respuesta incompleta] --> C
-    RT -- Sin tarifa --> RST[Respuesta sin tarifa] --> C
-    SW -- CONSULTA / DERIVAR --> RA[Respuesta agente] --> C
-    RE --> C
-    C -- email --> ER[Enviar respuesta]
-    C -- telegram --> SS[Send sms]
-```
+| Captura | Qué muestra |
+|---|---|
+| ![Canvas](capturas/Arquitectura_workflow.png) | Arquitectura del workflow |
+
+---
 
 ### Para qué está cada nodo
 
